@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maze Escape - 100 Levels</title>
+  <style>
+    body {
+      background-color: #121212;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: monospace;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      user-select: none;
+    }
+    h1 {
+      margin-bottom: 5px;
+    }
+    #level-info {
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+    }
+    #maze {
+      display: grid;
+      gap: 2px;
+      margin: 10px 0;
+      touch-action: none;
+      /* max size so it fits screen */
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    .cell {
+      background-color: #2e2e2e;
+      border: 1px solid #444;
+      box-sizing: border-box;
+      transition: background 0.15s;
+    }
+    .wall {
+      background-color: #555;
+    }
+    .player {
+      background-color: limegreen;
+    }
+    .end {
+      background-color: gold;
+    }
+    #win-message {
+      font-size: 1.4rem;
+      color: lightgreen;
+      margin: 10px 0;
+      display: none;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #444;
+      color: #eee;
+      margin-top: 10px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: limegreen;
+      color: #121212;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Maze Escape - 100 Levels</h1>
+<div id="level-info">Level: 1</div>
+<div id="maze"></div>
+<div id="win-message">🎉 Kamu berhasil keluar dari labirin! 🎉</div>
+<button id="next-level-btn" style="display:none;">Next Level</button>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    let level = 1;
+    const maxLevel = 100;
+
+    const mazeContainer = document.getElementById('maze');
+    const winMessage = document.getElementById('win-message');
+    const levelInfo = document.getElementById('level-info');
+    const nextLevelBtn = document.getElementById('next-level-btn');
+
+    let rows, cols;
+    let mazeData;
+    let playerPos;
+    let endPos;
+
+    const directions = [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 }
+    ];
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function generateMaze(x, y) {
+      mazeData[y][x] = 0;
+      const dirs = [...directions];
+      shuffle(dirs);
+
+      for (const dir of dirs) {
+        const nx = x + dir.x * 2;
+        const ny = y + dir.y * 2;
+        if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && mazeData[ny][nx] === 1) {
+          mazeData[y + dir.y][x + dir.x] = 0;
+          generateMaze(nx, ny);
+        }
+      }
+    }
+
+    function initMazeForLevel(lvl) {
+      // Maze size increases with level (minimum 7x7)
+      const baseSize = 7;
+      // Increase size by half level (rounded up)
+      const size = baseSize + Math.ceil(lvl / 2) * 2; // keep odd size for maze algorithm
+      rows = size;
+      cols = size;
+      
+      // Create maze filled with walls
+      mazeData = Array(rows).fill().map(() => Array(cols).fill(1));
+
+      // Generate maze starting at (1,1)
+      generateMaze(1, 1);
+
+      // Set player start and end positions
+      playerPos = { x: 1, y: 1 };
+      endPos = { x: cols - 2, y: rows - 2 };
+
+      // Set CSS grid properties dynamically for maze container
+      mazeContainer.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+      mazeContainer.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+    }
+
+    function renderMaze() {
+      mazeContainer.innerHTML = '';
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.style.width = '30px';
+          cell.style.height = '30px';
+
+          if (mazeData[y][x] === 1) cell.classList.add('wall');
+          if (x === playerPos.x && y === playerPos.y) cell.classList.add('player');
+          if (x === endPos.x && y === endPos.y) cell.classList.add('end');
+
+          mazeContainer.appendChild(cell);
+        }
+      }
+    }
+
+    function movePlayer(dx, dy) {
+      const nx = playerPos.x + dx;
+      const ny = playerPos.y + dy;
+      if (
+        nx >= 0 && nx < cols &&
+        ny >= 0 && ny < rows &&
+        mazeData[ny][nx] === 0
+      ) {
+        playerPos = { x: nx, y: ny };
+        renderMaze();
+        checkWin();
+      }
+    }
+
+    function checkWin() {
+      if (playerPos.x === endPos.x && playerPos.y === endPos.y) {
+        winMessage.style.display = 'block';
+        nextLevelBtn.style.display = level < maxLevel ? 'inline-block' : 'none';
+      }
+    }
+
+    function startLevel(lvl) {
+      level = lvl;
+      levelInfo.textContent = `Level: ${level}`;
+      winMessage.style.display = 'none';
+      nextLevelBtn.style.display = 'none';
+      initMazeForLevel(level);
+      renderMaze();
+    }
+
+    nextLevelBtn.addEventListener('click', () => {
+      if (level < maxLevel) {
+        startLevel(level + 1);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (winMessage.style.display === 'block') return; // disable move if won
+      switch (e.key) {
+        case 'ArrowUp': movePlayer(0, -1); break;
+        case 'ArrowDown': movePlayer(0, 1); break;
+        case 'ArrowLeft': movePlayer(-1, 0); break;
+        case 'ArrowRight': movePlayer(1, 0); break;
+      }
+    });
+
+    // Start game at level 1
+    startLevel(1);
+  });
+</script>
+
+</body>
+</html>
